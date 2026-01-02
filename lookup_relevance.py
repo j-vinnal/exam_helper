@@ -163,6 +163,8 @@ def ask_missing_field(field: str, facts: Facts) -> None:
         facts["address_exists"] = ask_bool(
             "Research: does the queried full address exist in real world?", default=True
         )
+
+        
     elif field == "distance_tier":
         # Chain queries require determining how close this result is relative to all real-world locations in the location‑intent area
         facts["distance_tier"] = ask_choice(
@@ -170,6 +172,10 @@ def ask_missing_field(field: str, facts: Facts) -> None:
             ["closest", "second", "third", "irrelevant"],
             default="second",
         )
+
+
+
+
     elif field == "result_in_requested_location":
         # For chain + general location queries, ask whether the result is actually inside the requested city/area
         facts["result_in_requested_location"] = ask_bool(
