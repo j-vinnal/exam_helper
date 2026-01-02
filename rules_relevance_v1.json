@@ -1,0 +1,269 @@
+[
+  {
+    "id": "REL.TRANSIT.EXACT",
+    "task": "relevance",
+    "when": { "qt": ["transit"], "rt": ["station"], "exact_match": [true] },
+    "then": {
+      "rating": "Navigational",
+      "demotion_reason": "N/A",
+      "comment": "User Intent issue: to find the specific transit station named in the query. The result matches exactly, so this is Navigational."
+    },
+    "gl": ["5.16.1"]
+  },
+  {
+    "id": "REL.TRANSIT.SAME_LOCALITY_OTHER",
+    "task": "relevance",
+    "when": { "qt": ["transit"], "rt": ["station"], "exact_match": [false], "same_locality": [true] },
+    "then": {
+      "rating": "Excellent",
+      "demotion_reason": "N/A",
+      "comment": "User Intent issue: to find the specific transit station. The result is another station in the same locality, which satisfies a secondary transit intent."
+    },
+    "gl": ["5.16.1"]
+  },
+  {
+    "id": "REL.TRANSIT.WRONG_LOCALITY",
+    "task": "relevance",
+    "when": { "qt": ["transit"], "rt": ["station"], "exact_match": [false], "same_locality": [false] },
+    "then": {
+      "rating": "Bad",
+      "demotion_reason": "User Intent issue",
+      "comment": "User Intent issue: to find the specific transit station. The result is a different station in another locality, so it does not satisfy the User Intent issue."
+    },
+    "gl": ["5.16.1"]
+  },
+
+  {
+    "id": "REL.LOCALITY.EXACT_LOCALITY",
+    "task": "relevance",
+    "when": { "qt": ["locality"], "rt": ["locality"], "exact_match": [true] },
+    "then": {
+      "rating": "Navigational",
+      "demotion_reason": "N/A",
+      "comment": "User Intent issue: to find the specified city or locality. The result matches exactly."
+    },
+    "gl": ["1.3.1"]
+  },
+  {
+    "id": "REL.LOCALITY.AIRPORT_UNEXPECTED",
+    "task": "relevance",
+    "when": { "qt": ["locality"], "rt": ["airport"] },
+    "then": {
+      "rating": "Good",
+      "demotion_reason": "User Intent issue",
+      "comment": "User Intent issue: to find the specified city or locality. The result is the locality's airport, which satisfies a secondary transit intent."
+    },
+    "gl": ["5.14"]
+  },
+
+  {
+    "id": "REL.STREET.MATCH_STREET",
+    "task": "relevance",
+    "when": { "qt": ["street"], "rt": ["street"], "same_street": [true] },
+    "then": {
+      "rating": "Navigational",
+      "demotion_reason": "N/A",
+      "comment": "User Intent issue: to find the specific street. The result returns that same street."
+    },
+    "gl": ["10.2"]
+  },
+  {
+    "id": "REL.STREET.RETURNS_POI",
+    "task": "relevance",
+    "when": { "qt": ["street"], "rt": ["poi"] },
+    "then": {
+      "rating": "Bad",
+      "demotion_reason": "User Intent issue",
+      "comment": "User Intent issue: to find a street. The result is a single point of interest on that street, which is too specific to satisfy the street-level intent."
+    },
+    "gl": ["5.14", "10.2"]
+  },
+
+  {
+    "id": "REL.CATEGORY_MALL.STORE_IN_MALL",
+    "task": "relevance",
+    "when": { "qt": ["category_mall"], "rt": ["store_in_mall"] },
+    "then": {
+      "rating": "Bad",
+      "demotion_reason": "User Intent issue",
+      "comment": "User Intent issue: to find a shopping mall. The result is a specific store inside a mall, which lacks sufficient connection."
+    },
+    "gl": ["10.7.8", "5.1.8"]
+  },
+  {
+    "id": "REL.CATEGORY_MALL.MALL",
+    "task": "relevance",
+    "when": { "qt": ["category_mall"], "rt": ["mall"] },
+    "then": {
+      "rating": "Excellent",
+      "demotion_reason": "N/A",
+      "comment": "User Intent issue: to find a shopping mall. The result is a mall."
+    },
+    "gl": ["10.7.8"]
+  },
+
+  {
+    "id": "REL.POI_NAME.ADDRESS_ONLY",
+    "task": "relevance",
+    "when": { "qt": ["poi_name"], "rt": ["address_only"] },
+    "then": {
+      "rating": "Bad",
+      "demotion_reason": "User Intent issue",
+      "comment": "User Intent issue: to find the named point of interest. The result provides only an address without the POI name, which lacks sufficient connection."
+    },
+    "gl": ["5.1.8"]
+  },
+
+  {
+    "id": "REL.FULL_ADDR.MATCH_EXISTS",
+    "task": "relevance",
+    "when": { "qt": ["full_addr"], "rt": ["address_only"], "same_address": [true], "address_exists": [true] },
+    "then": {
+      "rating": "Navigational",
+      "demotion_reason": "N/A",
+      "comment": "User Intent issue: to find the specific address. The result returns that exact address, which exists."
+    },
+    "gl": ["10.3"]
+  },
+  {
+    "id": "REL.FULL_ADDR.MATCH_NOT_EXISTS",
+    "task": "relevance",
+    "when": { "qt": ["full_addr"], "rt": ["address_only"], "same_address": [true], "address_exists": [false] },
+    "then": {
+      "rating": "Excellent",
+      "demotion_reason": "N/A",
+      "comment": "User Intent issue: to find the specific address. The address does not exist in the real world; the maximum rating is Excellent."
+    },
+    "gl": ["10.3"]
+  },
+  {
+    "id": "REL.FULL_ADDR.RETURNS_STREET",
+    "task": "relevance",
+    "when": { "qt": ["full_addr"], "rt": ["street"] },
+    "then": {
+      "rating": "Acceptable",
+      "demotion_reason": "User Intent issue",
+      "comment": "User Intent issue: to find the specific address. The result returns only the street, which is incomplete."
+    },
+    "gl": ["10.3"]
+  },
+  {
+    "id": "REL.FULL_ADDR.RETURNS_LOCALITY",
+    "task": "relevance",
+    "when": { "qt": ["full_addr"], "rt": ["locality"] },
+    "then": {
+      "rating": "Bad",
+      "demotion_reason": "User Intent issue",
+      "comment": "User Intent issue: to find the specific address. The result returns only the locality, which is too broad."
+    },
+    "gl": ["10.3"]
+  },
+
+{
+  "id": "REL.CHAIN.PLAIN.POI_DISTANCE_TIER",
+  "task": "relevance",
+  "when": { "qt": ["chain_plain"], "rt": ["poi"] },
+  "then": {
+    "rating_map": {
+      "distance_tier": {
+        "closest": "Excellent",
+        "second": "Good",
+        "third": "Acceptable",
+        "irrelevant": "Bad"
+      }
+    },
+    "demotion_reason_map": {
+      "distance_tier": {
+        "closest": "N/A",
+        "second": "Distance/Prominence issue",
+        "third": "Distance/Prominence issue",
+        "irrelevant": "Distance/Prominence issue"
+      }
+    },
+    "comment": "Chain query (no location modifier): primary intent is the nearest chain location. You MUST verify the real-world nearest options in the location-intent area (LI) using an authoritative source (e.g., official store locator). Tier guidance: closest→Excellent, 1 closer→Good, 2+ closer→Acceptable, far/way outside→Bad."
+  },
+  "gl": ["10.6.2", "5.4", "5.6"]
+},
+  
+  {
+    "id": "REL.CHAIN.PLAIN.DEPT_MISMATCH",
+    "task": "relevance",
+    "when": { "qt": ["chain_plain"], "rt": ["dept"] },
+    "then": {
+      "rating": "Bad",
+      "demotion_reason": "User Intent issue",
+      "comment": "User Intent issue: to find the chain's store. The result is a department or service within the chain, which is a mismatch."
+    },
+    "gl": ["5.1.8"]
+  },
+
+  {
+    "id": "REL.CHAIN.CITY.INSIDE_ONE",
+    "task": "relevance",
+    "when": { "qt": ["chain_city"], "rt": ["poi"], "result_in_requested_location": [true], "inside_open_count": ["1"] },
+    "then": {
+      "rating": "Navigational",
+      "demotion_reason": "N/A",
+      "comment": "User Intent issue: to find the chain in the requested location. There is exactly one open branch inside that location; treat this result as Navigational."
+    },
+    "gl": ["10.6.3.1"]
+  },
+  {
+    "id": "REL.CHAIN.CITY.INSIDE_MULTI",
+    "task": "relevance",
+    "when": { "qt": ["chain_city"], "rt": ["poi"], "result_in_requested_location": [true], "inside_open_count": ["2+"] },
+    "then": {
+      "rating": "Excellent",
+      "demotion_reason": "N/A",
+      "comment": "User Intent issue: to find the chain in the requested location. There are multiple open branches inside the location; do not demote inside results for distance."
+    },
+    "gl": ["10.6.3.1"]
+  },
+
+  {
+    "id": "REL.CHAIN.CITY.OUTSIDE_NONE",
+    "task": "relevance",
+    "when": { "qt": ["chain_city"], "rt": ["poi"], "result_in_requested_location": [false], "inside_open_count": ["0"] },
+    "then": {
+      "rating_map": {
+        "proximity_tier": {
+          "adjacent": "Excellent",
+          "near": "Good",
+          "far": "Bad"
+        }
+      },
+      "demotion_reason_map": {
+        "proximity_tier": {
+          "adjacent": "N/A",
+          "near": "Distance/Prominence issue",
+          "far": "Distance/Prominence issue"
+        }
+      },
+      "comment": "User Intent issue: to find the chain in the requested location. No open branches exist inside the requested location; outside results can still satisfy the intent depending on their proximity."
+    },
+    "gl": ["10.6.3.1"]
+  },
+  {
+    "id": "REL.CHAIN.CITY.OUTSIDE_SOME",
+    "task": "relevance",
+    "when": { "qt": ["chain_city"], "rt": ["poi"], "result_in_requested_location": [false], "inside_open_count": ["1", "2+"] },
+    "then": {
+      "rating_map": {
+        "proximity_tier": {
+          "adjacent": "Good",
+          "near": "Acceptable",
+          "far": "Bad"
+        }
+      },
+      "demotion_reason_map": {
+        "proximity_tier": {
+          "adjacent": "Distance/Prominence issue",
+          "near": "Distance/Prominence issue",
+          "far": "Distance/Prominence issue"
+        }
+      },
+      "comment": "User Intent issue: to find the chain in the requested location. There are open branches inside the requested location; outside results should be demoted based on their proximity and the number of inside options."
+    },
+    "gl": ["10.6.3.1"]
+  }
+]
