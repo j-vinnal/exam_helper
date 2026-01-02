@@ -141,7 +141,7 @@ def compute_location_intent(viewport_age: str, user_in_viewport: str, qt: str) -
 def ask_missing_field(field: str, facts: Facts) -> None:
     if field == "exact_match":
         facts["exact_match"] = ask_bool(
-            "Is the result an exact name match to the query?", default=False
+            "Research: Is the result an exact name match to the query?", default=False
         )
     elif field == "same_locality":
         facts["same_locality"] = ask_bool(
