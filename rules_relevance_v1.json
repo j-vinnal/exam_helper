@@ -1,0 +1,268 @@
+[
+  {
+    "id": "REL.TRANSIT.EXACT",
+    "task": "relevance",
+    "when": { "qt": ["transit"], "rt": ["station"], "exact_match": [true] },
+    "then": {
+      "rating": "Navigational",
+      "demotion_reason": "N/A",
+      "comment": "Exact station match for transit query."
+    },
+    "gl": ["5.16.1"]
+  },
+  {
+    "id": "REL.TRANSIT.SAME_LOCALITY_OTHER",
+    "task": "relevance",
+    "when": { "qt": ["transit"], "rt": ["station"], "exact_match": [false], "same_locality": [true] },
+    "then": {
+      "rating": "Excellent",
+      "demotion_reason": "N/A",
+      "comment": "Other station in queried locality (Stockport-style)."
+    },
+    "gl": ["5.16.1"]
+  },
+  {
+    "id": "REL.TRANSIT.WRONG_LOCALITY",
+    "task": "relevance",
+    "when": { "qt": ["transit"], "rt": ["station"], "exact_match": [false], "same_locality": [false] },
+    "then": {
+      "rating": "Bad",
+      "demotion_reason": "User Intent",
+      "comment": "Different station; does not satisfy specific station intent."
+    },
+    "gl": ["5.16.1"]
+  },
+
+  {
+    "id": "REL.LOCALITY.EXACT_LOCALITY",
+    "task": "relevance",
+    "when": { "qt": ["locality"], "rt": ["locality"], "exact_match": [true] },
+    "then": {
+      "rating": "Navigational",
+      "demotion_reason": "N/A",
+      "comment": "Exact locality match."
+    },
+    "gl": ["1.3.1"]
+  },
+  {
+    "id": "REL.LOCALITY.AIRPORT_UNEXPECTED",
+    "task": "relevance",
+    "when": { "qt": ["locality"], "rt": ["airport"] },
+    "then": {
+      "rating": "Good",
+      "demotion_reason": "User Intent",
+      "comment": "Airport can satisfy secondary transit intent for a city query."
+    },
+    "gl": ["5.14"]
+  },
+
+  {
+    "id": "REL.STREET.MATCH_STREET",
+    "task": "relevance",
+    "when": { "qt": ["street"], "rt": ["street"], "same_street": [true] },
+    "then": {
+      "rating": "Navigational",
+      "demotion_reason": "N/A",
+      "comment": "Street query answered by the same street."
+    },
+    "gl": ["10.2"]
+  },
+  {
+    "id": "REL.STREET.RETURNS_POI",
+    "task": "relevance",
+    "when": { "qt": ["street"], "rt": ["poi"] },
+    "then": {
+      "rating": "Bad",
+      "demotion_reason": "User Intent",
+      "comment": "Street-level query; single POI is too specific."
+    },
+    "gl": ["5.14", "10.2"]
+  },
+
+  {
+    "id": "REL.CATEGORY_MALL.STORE_IN_MALL",
+    "task": "relevance",
+    "when": { "qt": ["category_mall"], "rt": ["store_in_mall"] },
+    "then": {
+      "rating": "Bad",
+      "demotion_reason": "User Intent",
+      "comment": "Mall query; store inside mall does not satisfy."
+    },
+    "gl": ["10.7.8", "5.1.8"]
+  },
+  {
+    "id": "REL.CATEGORY_MALL.MALL",
+    "task": "relevance",
+    "when": { "qt": ["category_mall"], "rt": ["mall"] },
+    "then": {
+      "rating": "Excellent",
+      "demotion_reason": "N/A",
+      "comment": "Mall query; result is a mall."
+    },
+    "gl": ["10.7.8"]
+  },
+
+  {
+    "id": "REL.POI_NAME.ADDRESS_ONLY",
+    "task": "relevance",
+    "when": { "qt": ["poi_name"], "rt": ["address_only"] },
+    "then": {
+      "rating": "Bad",
+      "demotion_reason": "User Intent",
+      "comment": "POI-name query but result is address-only (lack of connection)."
+    },
+    "gl": ["5.1.8"]
+  },
+
+  {
+    "id": "REL.FULL_ADDR.MATCH_EXISTS",
+    "task": "relevance",
+    "when": { "qt": ["full_addr"], "rt": ["address_only"], "same_address": [true], "address_exists": [true] },
+    "then": {
+      "rating": "Navigational",
+      "demotion_reason": "N/A",
+      "comment": "Full address exists; exact address match."
+    },
+    "gl": ["10.3"]
+  },
+  {
+    "id": "REL.FULL_ADDR.MATCH_NOT_EXISTS",
+    "task": "relevance",
+    "when": { "qt": ["full_addr"], "rt": ["address_only"], "same_address": [true], "address_exists": [false] },
+    "then": {
+      "rating": "Excellent",
+      "demotion_reason": "N/A",
+      "comment": "Query address does not exist; max rating is Excellent."
+    },
+    "gl": ["10.3"]
+  },
+  {
+    "id": "REL.FULL_ADDR.RETURNS_STREET",
+    "task": "relevance",
+    "when": { "qt": ["full_addr"], "rt": ["street"] },
+    "then": {
+      "rating": "Acceptable",
+      "demotion_reason": "User Intent",
+      "comment": "Full address query; result is only the street (incomplete)."
+    },
+    "gl": ["10.3"]
+  },
+  {
+    "id": "REL.FULL_ADDR.RETURNS_LOCALITY",
+    "task": "relevance",
+    "when": { "qt": ["full_addr"], "rt": ["locality"] },
+    "then": {
+      "rating": "Bad",
+      "demotion_reason": "User Intent",
+      "comment": "Full address query; result is only the locality (too broad)."
+    },
+    "gl": ["10.3"]
+  },
+
+  {
+    "id": "REL.CHAIN.PLAIN.POI_DISTANCE_TIER",
+    "task": "relevance",
+    "when": { "qt": ["chain_plain"], "rt": ["poi"] },
+    "then": {
+      "rating_map": {
+        "distance_tier": {
+          "closest": "Excellent",
+          "second": "Good",
+          "third": "Acceptable",
+          "irrelevant": "Bad"
+        }
+      },
+      "demotion_reason_map": {
+        "distance_tier": {
+          "closest": "N/A",
+          "second": "Distance/Prominence",
+          "third": "Distance/Prominence",
+          "irrelevant": "Distance/Prominence"
+        }
+      },
+      "comment": "Chain query (no location modifier): choose tier vs real-world closest options in location-intent area."
+    },
+    "gl": ["10.6.2", "5.4", "5.6"]
+  },
+  {
+    "id": "REL.CHAIN.PLAIN.DEPT_MISMATCH",
+    "task": "relevance",
+    "when": { "qt": ["chain_plain"], "rt": ["dept"] },
+    "then": {
+      "rating": "Bad",
+      "demotion_reason": "User Intent",
+      "comment": "Chain store requested, but result is a department/service (mismatch)."
+    },
+    "gl": ["5.1.8"]
+  },
+
+  {
+    "id": "REL.CHAIN.CITY.INSIDE_ONE",
+    "task": "relevance",
+    "when": { "qt": ["chain_city"], "rt": ["poi"], "result_in_requested_location": [true], "inside_open_count": ["1"] },
+    "then": {
+      "rating": "Navigational",
+      "demotion_reason": "N/A",
+      "comment": "Only one open/existing branch inside requested location."
+    },
+    "gl": ["10.6.3.1"]
+  },
+  {
+    "id": "REL.CHAIN.CITY.INSIDE_MULTI",
+    "task": "relevance",
+    "when": { "qt": ["chain_city"], "rt": ["poi"], "result_in_requested_location": [true], "inside_open_count": ["2+"] },
+    "then": {
+      "rating": "Excellent",
+      "demotion_reason": "N/A",
+      "comment": "Multiple open/existing branches inside requested location; do not demote inside for distance."
+    },
+    "gl": ["10.6.3.1"]
+  },
+
+  {
+    "id": "REL.CHAIN.CITY.OUTSIDE_NONE",
+    "task": "relevance",
+    "when": { "qt": ["chain_city"], "rt": ["poi"], "result_in_requested_location": [false], "inside_open_count": ["0"] },
+    "then": {
+      "rating_map": {
+        "proximity_tier": {
+          "adjacent": "Excellent",
+          "near": "Good",
+          "far": "Bad"
+        }
+      },
+      "demotion_reason_map": {
+        "proximity_tier": {
+          "adjacent": "N/A",
+          "near": "Distance/Prominence",
+          "far": "Distance/Prominence"
+        }
+      },
+      "comment": "No open/existing branches inside requested location; outside results can still be relevant depending on proximity."
+    },
+    "gl": ["10.6.3.1"]
+  },
+  {
+    "id": "REL.CHAIN.CITY.OUTSIDE_SOME",
+    "task": "relevance",
+    "when": { "qt": ["chain_city"], "rt": ["poi"], "result_in_requested_location": [false], "inside_open_count": ["1", "2+"] },
+    "then": {
+      "rating_map": {
+        "proximity_tier": {
+          "adjacent": "Good",
+          "near": "Acceptable",
+          "far": "Bad"
+        }
+      },
+      "demotion_reason_map": {
+        "proximity_tier": {
+          "adjacent": "Distance/Prominence",
+          "near": "Distance/Prominence",
+          "far": "Distance/Prominence"
+        }
+      },
+      "comment": "There are open/existing branches inside requested location; outside results are demoted based on proximity and how many options exist inside."
+    },
+    "gl": ["10.6.3.1"]
+  }
+]
