@@ -9,38 +9,14 @@ from typing import Any, Dict, List, Tuple, Optional
 Facts = Dict[str, Any]
 Rule = Dict[str, Any]
 
-# Load lexicon descriptions for query/result and follow-up options. This file defines
-# human-readable titles and descriptions for the codes used in the rating lookup.
-try:
-    LEXICON = json.loads(Path("lexicon_relevance.json").read_text(encoding="utf-8"))
-except Exception:
-    LEXICON = {}
-
 
 # ------------------- UI helpers -------------------
 
 
-def ask_choice(
-    prompt: str,
-    options: List[str],
-    default: Optional[str] = None,
-    desc_map: Optional[Dict[str, Dict[str, str]]] = None,
-) -> str:
-    """Ask the user to choose one option from a list.
-
-    If desc_map is provided, print each option with its description to aid selection.
-    """
+def ask_choice(prompt: str, options: List[str], default: Optional[str] = None) -> str:
     print(f"\n{prompt}")
-    # Print option descriptions if available
     for opt in options:
-        # If descriptions exist for this option, show title and description
-        if desc_map and opt in desc_map:
-            info = desc_map[opt]
-            title = info.get("title") or opt
-            desc = info.get("description") or ""
-            print(f"  {opt:12} – {title}: {desc}")
-        else:
-            print(f"  {opt}")
+        print(f"  {opt}")
 
     hint = ""
     if default is not None:
@@ -115,22 +91,12 @@ def score_rule(known_matched: int, total_conditions: int) -> int:
 
 
 def compute_location_intent(viewport_age: str, user_in_viewport: str, qt: str) -> str:
-    """Compute the location intent based on viewport state and query type.
-
-    - For explicit location queries (chain_city, full_addr, locality), return 'explicit'.
-    - Treat missing viewport ('none') as fresh.
-    - For stale viewports, default to the user’s location.
-    - For fresh viewports: if user is outside, use viewport; if inside or unknown (na), use user.
-    """
-    # Explicit location: ignore viewport/user context
+    # explicit location types ignore user/viewport in practice (chain_city etc.)
     if qt in ("chain_city", "full_addr", "locality"):
         return "explicit"
-    # Normalize 'none' to 'fresh' (per guideline: missing viewport treated as fresh)
-    vp = viewport_age if viewport_age != "none" else "fresh"
-    if vp == "stale":
+    if viewport_age == "stale":
         return "user"
-    if vp == "fresh":
-        # 'out' → viewport; 'in' or 'na' → user (no reliable viewport relationship)
+    if viewport_age == "fresh":
         return "viewport" if user_in_viewport == "out" else "user"
     return "unknown"
 
@@ -140,49 +106,54 @@ def compute_location_intent(viewport_age: str, user_in_viewport: str, qt: str) -
 
 def ask_missing_field(field: str, facts: Facts) -> None:
     if field == "exact_match":
+        # Ask the user to research whether the station or POI name matches exactly
         facts["exact_match"] = ask_bool(
             "Research: Is the result an exact name match to the query?", default=False
         )
     elif field == "same_locality":
+        # For transit or locality queries, verify via research whether the result is in the same city/area
         facts["same_locality"] = ask_bool(
-            "Is the result in the queried locality/area?", default=False
+            "Research: Is the result in the queried locality/area?", default=False
         )
     elif field == "same_street":
+        # For partial-address queries, confirm whether the result lies on the same street as the query
         facts["same_street"] = ask_bool(
-            "Is it the same street as in the query?", default=True
+            "Research: Is the result on the same street as in the query?", default=True
         )
     elif field == "same_address":
+        # For full-address queries, verify whether the returned address exactly matches the query
         facts["same_address"] = ask_bool(
-            "Is it the same address as in the query?", default=True
+            "Research: Is the returned address exactly the same as the query address?", default=True
         )
     elif field == "address_exists":
         facts["address_exists"] = ask_bool(
             "Research: does the queried full address exist in real world?", default=True
         )
     elif field == "distance_tier":
+        # Chain queries require determining how close this result is relative to all real-world locations in the location‑intent area
         facts["distance_tier"] = ask_choice(
-            "Chain distance tier vs REAL-WORLD options in Location-Intent area",
+            "Research: determine the distance tier for this result (closest, second, third, irrelevant) based on real-world chain locations in the location-intent area",
             ["closest", "second", "third", "irrelevant"],
             default="second",
-            desc_map=LEXICON.get("distance_tier")
         )
     elif field == "result_in_requested_location":
+        # For chain + general location queries, ask whether the result is actually inside the requested city/area
         facts["result_in_requested_location"] = ask_bool(
-            "Is the result inside the requested (explicit) location?", default=True
+            "Research: Is the result inside the requested (explicit) location?", default=True
         )
     elif field == "inside_open_count":
+        # Determine the number of open/existing branches of the chain within the requested location (closed locations do not count)
         facts["inside_open_count"] = ask_choice(
-            "How many OPEN/EXISTS branches are inside the requested location? (Closed does NOT count)",
+            "Research: how many OPEN/EXISTS branches of the chain are inside the requested location? (Closed branches do NOT count)",
             ["0", "1", "2+"],
             default="2+",
-            desc_map=LEXICON.get("inside_open_count")
         )
     elif field == "proximity_tier":
+        # If no branch exists inside the requested location, ask how close the result is to that location
         facts["proximity_tier"] = ask_choice(
-            "If result is outside requested location: how close is it to the requested location?",
+            "Research: if the result is outside the requested location, how close is it (adjacent, near, far)?",
             ["adjacent", "near", "far"],
             default="adjacent",
-            desc_map=LEXICON.get("proximity_tier")
         )
     else:
         # Unknown field: ask a generic text (or skip)
@@ -237,7 +208,6 @@ def main() -> None:
             "other",
         ],
         default="other",
-        desc_map=LEXICON.get("qt")
     )
     facts["rt"] = ask_choice(
         "Result type (rt)",
@@ -254,27 +224,16 @@ def main() -> None:
             "other",
         ],
         default="poi",
-        desc_map=LEXICON.get("rt")
     )
     facts["viewport_age"] = ask_choice(
-        "Viewport age", ["fresh", "stale", "none"], default="fresh", desc_map=LEXICON.get("viewport_age")
+        "Viewport age", ["fresh", "stale", "none"], default="fresh"
     )
-    # normalize missing viewport to fresh immediately
-    if facts["viewport_age"] == "none":
-        facts["viewport_age"] = "fresh"
-        # user_in_viewport cannot be determined; treat as not applicable
-        facts["user_in_viewport"] = "na"
+    if facts["viewport_age"] == "fresh":
+        facts["user_in_viewport"] = ask_choice(
+            "User vs Fresh Viewport", ["in", "out"], default="in"
+        )
     else:
-        if facts["viewport_age"] == "fresh":
-            facts["user_in_viewport"] = ask_choice(
-                "User vs Fresh Viewport",
-                ["in", "out"],
-                default="in",
-                desc_map=LEXICON.get("user_in_viewport")
-            )
-        else:
-            # stale viewport, user_in_viewport is not applicable
-            facts["user_in_viewport"] = "na"
+        facts["user_in_viewport"] = "na"
 
     facts["location_intent"] = compute_location_intent(
         facts["viewport_age"], facts["user_in_viewport"], facts["qt"]
