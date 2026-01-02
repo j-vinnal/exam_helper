@@ -1,20 +1,31 @@
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Dict, List, Tuple, Optional
+"""
+Rule-based interactive helper for relevance rating practice.
 
+Fix: treat `then.rating_map` selector fields (e.g., distance_tier, proximity_tier)
+as REQUIRED inputs, not optional. Otherwise rules can "match" but still return
+rating="Unknown" because the selector fact was never collected.
+"""
+
+import json
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 Facts = Dict[str, Any]
 Rule = Dict[str, Any]
 
-# Load lexicon descriptions for query/result and follow-up options. This file defines
-# human-readable titles and descriptions for the codes used in the rating lookup.
-try:
-    LEXICON = json.loads(Path("lexicon_relevance.json").read_text(encoding="utf-8"))
-except Exception:
-    LEXICON = {}
+
+# ------------------- Lexicon (optional) -------------------
+
+def _load_lexicon(path: str = "lexicon_relevance.json") -> Dict[str, Any]:
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+LEXICON: Dict[str, Any] = _load_lexicon()
 
 
 # ------------------- UI helpers -------------------
@@ -23,17 +34,13 @@ except Exception:
 def ask_choice(
     prompt: str,
     options: List[str],
+    *,
     default: Optional[str] = None,
     desc_map: Optional[Dict[str, Dict[str, str]]] = None,
 ) -> str:
-    """Ask the user to choose one option from a list.
-
-    If desc_map is provided, print each option with its description to aid selection.
-    """
+    """Ask the user to choose one option from a list."""
     print(f"\n{prompt}")
-    # Print option descriptions if available
     for opt in options:
-        # If descriptions exist for this option, show title and description
         if desc_map and opt in desc_map:
             info = desc_map[opt]
             title = info.get("title") or opt
@@ -54,7 +61,8 @@ def ask_choice(
         print(f"Invalid. Choose one of: {', '.join(options)}")
 
 
-def ask_bool(prompt: str, default: Optional[bool] = None) -> bool:
+def ask_bool(prompt: str, *, default: Optional[bool] = None) -> bool:
+    """Ask yes/no."""
     hint = " [y/n]"
     if default is not None:
         hint += f" (default={'y' if default else 'n'})"
@@ -69,7 +77,7 @@ def ask_bool(prompt: str, default: Optional[bool] = None) -> bool:
         print("Please answer y/n.")
 
 
-# ------------------- matching -------------------
+# ------------------- Matching -------------------
 
 
 def load_rules(path: str) -> List[Rule]:
@@ -85,140 +93,173 @@ def matches_value(rule_val: Any, fact_val: Any) -> bool:
 def rule_is_compatible(
     rule: Rule, facts: Facts
 ) -> Tuple[bool, int, int, List[str], List[str]]:
-    """
-    Compatible = no known fact contradicts the rule.
-    Returns: (ok, known_matched, total_conditions, matched_keys, missing_keys)
-    """
+    """Compatible = no known fact contradicts the rule (checked only against `when`)."""
     when = rule.get("when", {})
     known_matched = 0
     matched_keys: List[str] = []
-    missing_keys: List[str] = []
+    missing_when_keys: List[str] = []
 
     for k, rule_val in when.items():
         if k not in facts:
-            missing_keys.append(k)
+            missing_when_keys.append(k)
             continue
         if not matches_value(rule_val, facts[k]):
             return (False, 0, 0, [], [])
         known_matched += 1
         matched_keys.append(k)
 
-    return (True, known_matched, len(when), matched_keys, missing_keys)
+    return (True, known_matched, len(when), matched_keys, missing_when_keys)
 
 
 def score_rule(known_matched: int, total_conditions: int) -> int:
-    # Prefer rules that match many known facts and are specific.
+    """Prefer rules that match many known facts and are specific."""
     return known_matched * 10 + total_conditions
 
 
-# ------------------- LI (computed) -------------------
+def required_fields_for_rule(rule: Rule) -> List[str]:
+    """Fields required to *evaluate* a rule (when + rating_map selectors)."""
+    required = set(rule.get("when", {}).keys())
+    then = rule.get("then", {})
+
+    rating_map = then.get("rating_map")
+    if isinstance(rating_map, dict):
+        required.update(rating_map.keys())
+
+    demotion_reason_map = then.get("demotion_reason_map")
+    if isinstance(demotion_reason_map, dict):
+        required.update(demotion_reason_map.keys())
+
+    return sorted(required)
+
+
+def is_rule_fully_evaluable(rule: Rule, facts: Facts) -> bool:
+    return all(k in facts for k in required_fields_for_rule(rule))
+
+
+# ------------------- Location intent (computed) -------------------
 
 
 def compute_location_intent(viewport_age: str, user_in_viewport: str, qt: str) -> str:
-    """Compute the location intent based on viewport state and query type.
-
-    - For explicit location queries (chain_city, full_addr, locality), return 'explicit'.
-    - Treat missing viewport ('none') as fresh.
-    - For stale viewports, default to the user’s location.
-    - For fresh viewports: if user is outside, use viewport; if inside or unknown (na), use user.
     """
-    # Explicit location: ignore viewport/user context
+    - Explicit-location queries ignore viewport/user context.
+    - Missing viewport is treated as fresh.
+    - Stale viewport -> user.
+    - Fresh viewport -> viewport if user outside; otherwise user.
+    """
     if qt in ("chain_city", "full_addr", "locality"):
         return "explicit"
-    # Normalize 'none' to 'fresh' (per guideline: missing viewport treated as fresh)
+
     vp = viewport_age if viewport_age != "none" else "fresh"
     if vp == "stale":
         return "user"
     if vp == "fresh":
-        # 'out' → viewport; 'in' or 'na' → user (no reliable viewport relationship)
         return "viewport" if user_in_viewport == "out" else "user"
     return "unknown"
 
 
-# ------------------- dynamic follow-ups -------------------
+# ------------------- Follow-ups -------------------
 
 
 def ask_missing_field(field: str, facts: Facts) -> None:
+    """
+    For distance/proximity judgments: you MUST research the REAL WORLD (e.g., official store locator),
+    not only the returned results list.
+    """
+
     if field == "exact_match":
-        # Ask the user to research whether the station or POI name matches exactly
         facts["exact_match"] = ask_bool(
-            "Research: Is the result an exact name match to the query?", default=False
+            "Research: Is the result an exact name match to the query?",
+            default=False,
         )
-    elif field == "same_locality":
-        # For transit or locality queries, verify via research whether the result is in the same city/area
+        return
+
+    if field == "same_locality":
         facts["same_locality"] = ask_bool(
-            "Research: Is the result in the queried locality/area?", default=False
+            "Research: Is the result in the queried locality/area?",
+            default=False,
         )
-    elif field == "same_street":
-        # For partial-address queries, confirm whether the result lies on the same street as the query
+        return
+
+    if field == "same_street":
         facts["same_street"] = ask_bool(
-            "Research: Is the result on the same street as in the query?", default=True
+            "Research: Is the result on the same street as in the query?",
+            default=True,
         )
-    elif field == "same_address":
-        # For full-address queries, verify whether the returned address exactly matches the query
+        return
+
+    if field == "same_address":
         facts["same_address"] = ask_bool(
-            "Research: Is the returned address exactly the same as the query address?", default=True
+            "Research: Does the result exactly match the queried full address?",
+            default=True,
         )
-    elif field == "address_exists":
+        return
+
+    if field == "address_exists":
         facts["address_exists"] = ask_bool(
-            "Research: does the queried full address exist in real world?", default=True
+            "Research: Does the queried full address exist in the real world?",
+            default=True,
         )
+        return
 
-        
-    elif field == "distance_tier":
-        # Chain queries require determining how close this result is relative to all real-world locations in the location‑intent area
+    if field == "distance_tier":
+        li = facts.get("location_intent", "unknown")
         facts["distance_tier"] = ask_choice(
-            "Research: determine the distance tier for this result (closest, second, third, irrelevant) based on real-world chain locations in the location-intent area",
+            "Research (CHAIN distance): Based on location intent = "
+            f"{li}. Use an official chain store locator and determine how many "
+            "real-world locations are clearly closer than THIS result.\n"
+            "Choose the distance tier:",
             ["closest", "second", "third", "irrelevant"],
-            default="second",
+            default=None,  # force explicit choice
+            desc_map=LEXICON.get("distance_tier"),
         )
+        return
 
-
-
-
-    elif field == "result_in_requested_location":
-        # For chain + general location queries, ask whether the result is actually inside the requested city/area
+    if field == "result_in_requested_location":
         facts["result_in_requested_location"] = ask_bool(
-            "Research: Is the result inside the requested (explicit) location?", default=True
+            "Research: Is the result inside the requested (explicit) location?",
+            default=True,
         )
-    elif field == "inside_open_count":
-        # Determine the number of open/existing branches of the chain within the requested location (closed locations do not count)
-        facts["inside_open_count"] = ask_choice(
-            "Research: how many OPEN/EXISTS branches of the chain are inside the requested location? (Closed branches do NOT count)",
-            ["0", "1", "2+"],
-            default="2+",
-        )
-    elif field == "proximity_tier":
-        # If no branch exists inside the requested location, ask how close the result is to that location
-        facts["proximity_tier"] = ask_choice(
-            "Research: if the result is outside the requested location, how close is it (adjacent, near, far)?",
-            ["adjacent", "near", "far"],
-            default="adjacent",
-        )
-    else:
-        # Unknown field: ask a generic text (or skip)
-        facts[field] = input(f"Provide value for {field}: ").strip()
+        return
 
+    if field == "inside_open_count":
+        facts["inside_open_count"] = ask_choice(
+            "Research: How many OPEN/EXISTS branches of the chain are inside the requested location?\n"
+            "(Closed branches do NOT count.)",
+            ["0", "1", "2+"],
+            default=None,
+            desc_map=LEXICON.get("inside_open_count"),
+        )
+        return
+
+    if field == "proximity_tier":
+        facts["proximity_tier"] = ask_choice(
+            "Research (CHAIN + CITY): If the result is outside the requested location, how close is it?",
+            ["adjacent", "near", "far"],
+            default=None,
+            desc_map=LEXICON.get("proximity_tier"),
+        )
+        return
+
+    facts[field] = input(f"Provide value for {field}: ").strip()
+
+
+# ------------------- Applying a rule -------------------
 
 
 def apply_rule(rule: Rule, facts: Facts) -> Tuple[str, str, str]:
     then = rule.get("then", {})
     gl = ", ".join(rule.get("gl", []))
 
-    # direct rating
     if "rating" in then:
         return then["rating"], then.get("demotion_reason", "N/A"), gl
 
-    # rating_map
     rating_map = then.get("rating_map")
-    if rating_map:
-        # only one key expected in this v1
+    if isinstance(rating_map, dict) and rating_map:
         for field, mapping in rating_map.items():
             val = facts.get(field)
             if val is None:
                 return "Unknown", "N/A", gl
             rating = mapping.get(val, "Unknown")
-            # demotion reason mapping (optional)
             dr_map = then.get("demotion_reason_map", {}).get(field, {})
             demotion_reason = dr_map.get(val, "N/A")
             return rating, demotion_reason, gl
@@ -226,14 +267,46 @@ def apply_rule(rule: Rule, facts: Facts) -> Tuple[str, str, str]:
     return "Unknown", "N/A", gl
 
 
-# ------------------- main -------------------
+def build_comment_template(rule: Rule, facts: Facts, rating: str, demotion_reason: str) -> str:
+    """Return a comment template (English) when comment is required (Good/Acceptable/Bad)."""
+    if rating not in ("Good", "Acceptable", "Bad"):
+        return "(No comment required for this rating.)"
+
+    rule_id = rule.get("id", "")
+    li = facts.get("location_intent", "unknown")
+
+    if rule_id == "REL.CHAIN.PLAIN.POI_DISTANCE_TIER":
+        tier = facts.get("distance_tier", "unknown")
+        tier_to_closer = {
+            "closest": "0 closer locations",
+            "second": "1 closer location",
+            "third": "2+ closer locations",
+            "irrelevant": "many closer locations / far outside reasonable area",
+        }
+        closer_txt = tier_to_closer.get(tier, "unknown number of")
+        return (
+            f"User intent: find the nearest chain location (LI={li}). "
+            f"This result is not the closest option: there are {closer_txt} in the real world. "
+            f"Demoted to {rating} for {demotion_reason}. "
+            "Evidence: [link to official store locator or authoritative source]."
+        )
+
+    why = rule.get("then", {}).get("comment", "").strip()
+    if why:
+        why = f"Reasoning: {why} "
+    return (
+        f"User intent: [describe]. {why}Demoted to {rating} for {demotion_reason}. "
+        "Evidence: [cite authoritative source / locator / map]."
+    )
+
+
+# ------------------- Main -------------------
 
 
 def main() -> None:
     rules = load_rules("rules_relevance_v1.json")
     facts: Facts = {"task": "relevance"}
 
-    # minimal base facts
     facts["qt"] = ask_choice(
         "Query type (qt)",
         [
@@ -249,8 +322,9 @@ def main() -> None:
             "other",
         ],
         default="other",
-        desc_map=LEXICON.get("qt")
+        desc_map=LEXICON.get("qt"),
     )
+
     facts["rt"] = ask_choice(
         "Result type (rt)",
         [
@@ -266,46 +340,40 @@ def main() -> None:
             "other",
         ],
         default="poi",
-        desc_map=LEXICON.get("rt")
+        desc_map=LEXICON.get("rt"),
     )
+
     facts["viewport_age"] = ask_choice(
-        "Viewport age", ["fresh", "stale", "none"], default="fresh", desc_map=LEXICON.get("viewport_age")
+        "Viewport age",
+        ["fresh", "stale", "none"],
+        default="fresh",
+        desc_map=LEXICON.get("viewport_age"),
     )
-    # normalize missing viewport to fresh immediately
-    if facts["viewport_age"] == "none":
-        facts["viewport_age"] = "fresh"
-        # user_in_viewport cannot be determined; treat as not applicable
-        facts["user_in_viewport"] = "na"
+
+    if facts["viewport_age"] == "fresh":
+        facts["user_in_viewport"] = ask_choice(
+            "User vs Fresh Viewport",
+            ["in", "out"],
+            default="in",
+            desc_map=LEXICON.get("user_in_viewport"),
+        )
     else:
-        if facts["viewport_age"] == "fresh":
-            facts["user_in_viewport"] = ask_choice(
-                "User vs Fresh Viewport",
-                ["in", "out"],
-                default="in",
-                desc_map=LEXICON.get("user_in_viewport")
-            )
-        else:
-            # stale viewport, user_in_viewport is not applicable
-            facts["user_in_viewport"] = "na"
+        facts["user_in_viewport"] = "na"
 
     facts["location_intent"] = compute_location_intent(
         facts["viewport_age"], facts["user_in_viewport"], facts["qt"]
     )
 
-    # iterative: pick best candidates, ask missing fields for them
-    for _ in range(3):  # cap follow-up rounds
-        candidates: List[Tuple[int, Rule, List[str], List[str]]] = []
+    # Iterative follow-ups: ask missing required fields from top candidates
+    for _ in range(3):
+        candidates: List[Tuple[int, Rule, List[str]]] = []
         for r in rules:
             if r.get("task") != facts["task"]:
                 continue
-            ok, known_matched, total_cond, matched_keys, missing_keys = (
-                rule_is_compatible(r, facts)
-            )
+            ok, known_matched, total_cond, matched_keys, _ = rule_is_compatible(r, facts)
             if not ok:
                 continue
-            candidates.append(
-                (score_rule(known_matched, total_cond), r, matched_keys, missing_keys)
-            )
+            candidates.append((score_rule(known_matched, total_cond), r, matched_keys))
 
         candidates.sort(key=lambda x: x[0], reverse=True)
         top = candidates[:5]
@@ -313,38 +381,32 @@ def main() -> None:
             print("\nNo compatible rules found. Add a new rule.")
             return
 
-        # collect missing keys from top candidates
-        missing_set = []
-        for _, r, _, missing_keys in top:
-            for k in missing_keys:
+        missing_set: List[str] = []
+        for _, r, _ in top:
+            for k in required_fields_for_rule(r):
                 if k not in facts and k not in missing_set:
                     missing_set.append(k)
 
         if not missing_set:
-            break  # we have enough facts to fully evaluate best rules
+            break
 
-        # ask at most 2 missing fields per round
         for k in missing_set[:2]:
             ask_missing_field(k, facts)
 
-    # final selection (now should have required fields)
+    # Final selection: compatible + fully evaluable
     finals: List[Tuple[int, Rule, List[str]]] = []
     for r in rules:
         if r.get("task") != facts["task"]:
             continue
-        ok, known_matched, total_cond, matched_keys, missing_keys = rule_is_compatible(
-            r, facts
-        )
-        if not ok or missing_keys:
+        ok, known_matched, total_cond, matched_keys, _ = rule_is_compatible(r, facts)
+        if not ok:
+            continue
+        if not is_rule_fully_evaluable(r, facts):
             continue
         finals.append((score_rule(known_matched, total_cond), r, matched_keys))
 
     if not finals:
-        print(
-            "\nNo fully-satisfied rule after follow-ups. Showing best compatible candidates:"
-        )
-        # fall back to top compatible
-        # (reuse earlier candidates)
+        print("\nNo fully-evaluable rule after follow-ups.")
         return
 
     finals.sort(key=lambda x: x[0], reverse=True)
@@ -352,21 +414,21 @@ def main() -> None:
 
     print("\n--- Top 3 matched rules ---")
     for score, r, keys in top3:
-        print(
-            f"* score={score} id={r['id']} matched={keys} GL={','.join(r.get('gl', []))}"
-        )
+        print(f"* score={score} id={r['id']} matched={keys} GL={','.join(r.get('gl', []))}")
 
     best = top3[0][1]
     rating, demotion_reason, gl = apply_rule(best, facts)
+    comment = build_comment_template(best, facts, rating, demotion_reason)
 
     print("\n=== Suggested output ===")
     print(f"Location intent (computed): {facts['location_intent']}")
     print(f"Relevance rating: {rating}")
     print(f"Demotion reason: {demotion_reason}")
     print("Comment template:")
-    print(f"- Rule: {best['id']}")
-    print(f"- Why: {best.get('then', {}).get('comment', '')}")
-    print(f"- GL: {gl}")
+    print(comment)
+    print(f"Rule: {best['id']}")
+    print(f"Why: {best.get('then', {}).get('comment', '')}")
+    print(f"GL: {gl}")
 
 
 if __name__ == "__main__":
