@@ -1,0 +1,114 @@
+[
+  {
+    "id": "NAME.NA.ADDRESS_TYPE",
+    "task": "name_category",
+    "when": { "result_is_address_type": [true] },
+    "then": {
+      "rating": "N/A",
+      "comment": "Address-type results do not receive Name Accuracy. Confirm the result is an address/street/locality (not a POI). Then rate Name Accuracy = N/A."
+    },
+    "gl": ["6.1"]
+  },
+  {
+    "id": "NAME.INCORRECT.CATEGORY_OVERRIDES",
+    "task": "name_category",
+    "when": { "category_correct": [false] },
+    "then": {
+      "rating": "Incorrect",
+      "comment": "If the category/classification is wrong, the final Name & Category Accuracy is always Incorrect, regardless of name similarity. Verify category via official sources / obvious on-map evidence."
+    },
+    "gl": ["6.3.2"]
+  },
+  {
+    "id": "NAME.PARTIAL.MINOR_VARIATION",
+    "task": "name_category",
+    "when": {
+      "result_is_address_type": [false],
+      "category_correct": [true]
+    },
+    "then": {
+      "rating_map": {
+        "name_match_quality": {
+          "exact": "Correct",
+          "minor_variation": "Partially Correct",
+          "major_mismatch": "Incorrect",
+          "cant_verify": "Can't Verify"
+        }
+      },
+      "comment": "Determine name match quality: exact vs minor recognizable variation vs mismatch. Use Partially Correct only when the intended entity is still clearly recognizable."
+    },
+    "gl": ["6.2.2"]
+  },
+  {
+    "id": "NAME.PARKING.REQUIRES_PARKING_TERM",
+    "task": "name_category",
+    "when": { "is_parking_feature": [true] },
+    "then": {
+      "rating_map": {
+        "name_includes_parking_term": {
+          "true": "Correct",
+          "false": "Incorrect"
+        }
+      },
+      "comment": "For parking features, the name must include a parking descriptor (e.g., Parking / Parking Lot / Garage). If missing, rate Incorrect."
+    },
+    "gl": ["6.6"]
+  },
+
+  {
+    "id": "ADDR.TRANSIT.LOCALITY_ONLY_OK",
+    "task": "address_accuracy",
+    "when": { "poi_address_expected_level": ["locality_only_ok"] },
+    "then": {
+      "rating_map": {
+        "address_component_issue": {
+          "none": "Correct",
+          "formatting_only": "Correct",
+          "locality": "Incorrect",
+          "cant_verify": "Can't Verify"
+        }
+      },
+      "comment": "For transit POIs where no street address is expected, locality is the minimum component. Verify the POI is physically within the stated locality."
+    },
+    "gl": ["8.3.2.1"]
+  },
+  {
+    "id": "ADDR.INCORRECT.STREET_DIRECTION_MISSING",
+    "task": "address_accuracy",
+    "when": { "address_component_issue": ["street_name"] },
+    "then": {
+      "rating": "Incorrect",
+      "comment": "Street directions (N/E/S/W) are part of the street name. If missing/incorrect vs official/USPS, this is Incorrect (Street Name)."
+    },
+    "gl": ["7.1.3"]
+  },
+
+  {
+    "id": "PIN.CANT_VERIFY.ADDRESS_DOES_NOT_EXIST",
+    "task": "pin_accuracy",
+    "when": { "pin_relation": ["cant_verify"] },
+    "then": {
+      "rating": "Can't Verify",
+      "comment": "If the address/entity cannot be verified (e.g., address does not exist), there is no ground-truth location for the pin. Rate Can't Verify."
+    },
+    "gl": ["10.3", "9.1.5"]
+  },
+  {
+    "id": "PIN.RATING.BY_RELATION",
+    "task": "pin_accuracy",
+    "when": {},
+    "then": {
+      "rating_map": {
+        "pin_relation": {
+          "precise": "Perfect",
+          "within_feature": "Approximate",
+          "next_door_same_block": "Next Door",
+          "outside": "Wrong",
+          "cant_verify": "Can't Verify"
+        }
+      },
+      "comment": "Decide pin_relation via satellite + street imagery + boundaries. Next Door requires same street AND same block; do NOT use Next Door for shared spaces (shared parking/complexes)."
+    },
+    "gl": ["9.1.1.1", "9.1.2", "9.1.3", "9.1.4", "9.3.2.1"]
+  }
+]
