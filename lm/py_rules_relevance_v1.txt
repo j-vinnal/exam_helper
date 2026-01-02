@@ -6,7 +6,7 @@
     "then": {
       "rating": "Navigational",
       "demotion_reason": "N/A",
-      "comment": "User intent: to find the specific transit station named in the query. The result matches exactly, so this is Navigational."
+      "comment": "Exact station match for transit query."
     },
     "gl": ["5.16.1"]
   },
@@ -17,7 +17,7 @@
     "then": {
       "rating": "Excellent",
       "demotion_reason": "N/A",
-      "comment": "User intent: to find the specific transit station. The result is another station in the same locality, which satisfies a secondary transit intent."
+      "comment": "Other station in queried locality (Stockport-style)."
     },
     "gl": ["5.16.1"]
   },
@@ -28,7 +28,7 @@
     "then": {
       "rating": "Bad",
       "demotion_reason": "User Intent",
-      "comment": "User intent: to find the specific transit station. The result is a different station in another locality, so it does not satisfy the user intent."
+      "comment": "Different station; does not satisfy specific station intent."
     },
     "gl": ["5.16.1"]
   },
@@ -40,7 +40,7 @@
     "then": {
       "rating": "Navigational",
       "demotion_reason": "N/A",
-      "comment": "User intent: to find the specified city or locality. The result matches exactly."
+      "comment": "Exact locality match."
     },
     "gl": ["1.3.1"]
   },
@@ -51,7 +51,7 @@
     "then": {
       "rating": "Good",
       "demotion_reason": "User Intent",
-      "comment": "User intent: to find the specified city or locality. The result is the locality's airport, which satisfies a secondary transit intent."
+      "comment": "Airport can satisfy secondary transit intent for a city query."
     },
     "gl": ["5.14"]
   },
@@ -63,7 +63,7 @@
     "then": {
       "rating": "Navigational",
       "demotion_reason": "N/A",
-      "comment": "User intent: to find the specific street. The result returns that same street."
+      "comment": "Street query answered by the same street."
     },
     "gl": ["10.2"]
   },
@@ -74,7 +74,7 @@
     "then": {
       "rating": "Bad",
       "demotion_reason": "User Intent",
-      "comment": "User intent: to find a street. The result is a single point of interest on that street, which is too specific to satisfy the street-level intent."
+      "comment": "Street-level query; single POI is too specific."
     },
     "gl": ["5.14", "10.2"]
   },
@@ -86,7 +86,7 @@
     "then": {
       "rating": "Bad",
       "demotion_reason": "User Intent",
-      "comment": "User intent: to find a shopping mall. The result is a specific store inside a mall, which lacks sufficient connection."
+      "comment": "Mall query; store inside mall does not satisfy."
     },
     "gl": ["10.7.8", "5.1.8"]
   },
@@ -97,7 +97,7 @@
     "then": {
       "rating": "Excellent",
       "demotion_reason": "N/A",
-      "comment": "User intent: to find a shopping mall. The result is a mall."
+      "comment": "Mall query; result is a mall."
     },
     "gl": ["10.7.8"]
   },
@@ -109,7 +109,7 @@
     "then": {
       "rating": "Bad",
       "demotion_reason": "User Intent",
-      "comment": "User intent: to find the named point of interest. The result provides only an address without the POI name, which lacks sufficient connection."
+      "comment": "POI-name query but result is address-only (lack of connection)."
     },
     "gl": ["5.1.8"]
   },
@@ -121,7 +121,7 @@
     "then": {
       "rating": "Navigational",
       "demotion_reason": "N/A",
-      "comment": "User intent: to find the specific address. The result returns that exact address, which exists."
+      "comment": "Full address exists; exact address match."
     },
     "gl": ["10.3"]
   },
@@ -132,7 +132,7 @@
     "then": {
       "rating": "Excellent",
       "demotion_reason": "N/A",
-      "comment": "User intent: to find the specific address. The address does not exist in the real world; the maximum rating is Excellent."
+      "comment": "Query address does not exist; max rating is Excellent."
     },
     "gl": ["10.3"]
   },
@@ -143,7 +143,7 @@
     "then": {
       "rating": "Acceptable",
       "demotion_reason": "User Intent",
-      "comment": "User intent: to find the specific address. The result returns only the street, which is incomplete."
+      "comment": "Full address query; result is only the street (incomplete)."
     },
     "gl": ["10.3"]
   },
@@ -154,7 +154,7 @@
     "then": {
       "rating": "Bad",
       "demotion_reason": "User Intent",
-      "comment": "User intent: to find the specific address. The result returns only the locality, which is too broad."
+      "comment": "Full address query; result is only the locality (too broad)."
     },
     "gl": ["10.3"]
   },
@@ -180,7 +180,7 @@
           "irrelevant": "Distance/Prominence"
         }
       },
-      "comment": "User intent: to find the nearest location of the chain. Research: determine which distance tier (closest, second, third, irrelevant) this result falls into based on real-world options in the location-intent area, then rate accordingly."
+      "comment": "Chain query (no location modifier): choose tier vs real-world closest options in location-intent area."
     },
     "gl": ["10.6.2", "5.4", "5.6"]
   },
@@ -191,7 +191,7 @@
     "then": {
       "rating": "Bad",
       "demotion_reason": "User Intent",
-      "comment": "User intent: to find the chain's store. The result is a department or service within the chain, which is a mismatch."
+      "comment": "Chain store requested, but result is a department/service (mismatch)."
     },
     "gl": ["5.1.8"]
   },
@@ -203,7 +203,7 @@
     "then": {
       "rating": "Navigational",
       "demotion_reason": "N/A",
-      "comment": "User intent: to find the chain in the requested location. There is exactly one open branch inside that location; treat this result as Navigational."
+      "comment": "Only one open/existing branch inside requested location."
     },
     "gl": ["10.6.3.1"]
   },
@@ -214,7 +214,7 @@
     "then": {
       "rating": "Excellent",
       "demotion_reason": "N/A",
-      "comment": "User intent: to find the chain in the requested location. There are multiple open branches inside the location; do not demote inside results for distance."
+      "comment": "Multiple open/existing branches inside requested location; do not demote inside for distance."
     },
     "gl": ["10.6.3.1"]
   },
@@ -238,7 +238,7 @@
           "far": "Distance/Prominence"
         }
       },
-      "comment": "User intent: to find the chain in the requested location. Research: no open branches exist inside the requested location; outside results can still satisfy the intent depending on their proximity."
+      "comment": "No open/existing branches inside requested location; outside results can still be relevant depending on proximity."
     },
     "gl": ["10.6.3.1"]
   },
@@ -261,7 +261,7 @@
           "far": "Distance/Prominence"
         }
       },
-      "comment": "User intent: to find the chain in the requested location. Research: there are open branches inside the requested location; outside results should be demoted based on their proximity and the number of inside options."
+      "comment": "There are open/existing branches inside requested location; outside results are demoted based on proximity and how many options exist inside."
     },
     "gl": ["10.6.3.1"]
   }
