@@ -140,21 +140,5 @@
     "far": {
       "description": "Result is far from the requested location; likely irrelevant if closer options exist inside."
     }
-  },
-  "transit_flags": {
-    "exact_match": {
-      "description": "Whether the result name exactly matches the station name in the query."
-    },
-    "same_locality": {
-      "description": "Whether the result station is in the same locality (city/area) as the queried station."
-    }
-  },
-  "address_flags": {
-    "same_address": {
-      "description": "Whether the result’s address is exactly the same as the queried full address."
-    },
-    "address_exists": {
-      "description": "Whether the queried address actually exists in the real world."
-    }
   }
 }
