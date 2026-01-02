@@ -15,11 +15,20 @@ from typing import Any, Dict, List, Optional, Tuple
 Facts = Dict[str, Any]
 Rule = Dict[str, Any]
 
+# ------------------- Test Infrastructure -------------------
+TEST_MODE = False
+TEST_ANSWERS: Dict[str, str] = {}
+# -----------------------------------------------------------
 
 # ------------------- Lexicon (optional) -------------------
 
+
 def _load_lexicon(path: str = "lexicon_relevance.json") -> Dict[str, Any]:
     try:
+        script_dir = Path(__file__).parent
+        file_path = script_dir / path
+        if file_path.exists():
+            return json.loads(file_path.read_text(encoding="utf-8"))
         return json.loads(Path(path).read_text(encoding="utf-8"))
     except Exception:
         return {}
@@ -39,6 +48,17 @@ def ask_choice(
     desc_map: Optional[Dict[str, Dict[str, str]]] = None,
 ) -> str:
     """Ask the user to choose one option from a list."""
+    if TEST_MODE:
+        for key, val in TEST_ANSWERS.items():
+            if key.lower() in prompt.lower():
+                # print(f"[TEST] {prompt} -> {val}")
+                return val
+        if default is not None:
+            return default
+        raise RuntimeError(
+            f"TEST_MODE: No answer provided for prompt '{prompt}' and no default available."
+        )
+
     print(f"\n{prompt}")
     for opt in options:
         if desc_map and opt in desc_map:
@@ -63,6 +83,17 @@ def ask_choice(
 
 def ask_bool(prompt: str, *, default: Optional[bool] = None) -> bool:
     """Ask yes/no."""
+    if TEST_MODE:
+        for key, val in TEST_ANSWERS.items():
+            if key.lower() in prompt.lower():
+                # print(f"[TEST] {prompt} -> {val}")
+                return val.lower() in ("y", "yes", "j", "jah", "true")
+        if default is not None:
+            return default
+        raise RuntimeError(
+            f"TEST_MODE: No answer provided for prompt '{prompt}' and no default available."
+        )
+
     hint = " [y/n]"
     if default is not None:
         hint += f" (default={'y' if default else 'n'})"
@@ -81,6 +112,10 @@ def ask_bool(prompt: str, *, default: Optional[bool] = None) -> bool:
 
 
 def load_rules(path: str) -> List[Rule]:
+    script_dir = Path(__file__).parent
+    file_path = script_dir / path
+    if file_path.exists():
+        return json.loads(file_path.read_text(encoding="utf-8"))
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
@@ -267,7 +302,9 @@ def apply_rule(rule: Rule, facts: Facts) -> Tuple[str, str, str]:
     return "Unknown", "N/A", gl
 
 
-def build_comment_template(rule: Rule, facts: Facts, rating: str, demotion_reason: str) -> str:
+def build_comment_template(
+    rule: Rule, facts: Facts, rating: str, demotion_reason: str
+) -> str:
     """Return a comment template (English) when comment is required (Good/Acceptable/Bad)."""
     if rating not in ("Good", "Acceptable", "Bad"):
         return "(No comment required for this rating.)"
@@ -370,7 +407,9 @@ def main() -> None:
         for r in rules:
             if r.get("task") != facts["task"]:
                 continue
-            ok, known_matched, total_cond, matched_keys, _ = rule_is_compatible(r, facts)
+            ok, known_matched, total_cond, matched_keys, _ = rule_is_compatible(
+                r, facts
+            )
             if not ok:
                 continue
             candidates.append((score_rule(known_matched, total_cond), r, matched_keys))
@@ -414,7 +453,9 @@ def main() -> None:
 
     print("\n--- Top 3 matched rules ---")
     for score, r, keys in top3:
-        print(f"* score={score} id={r['id']} matched={keys} GL={','.join(r.get('gl', []))}")
+        print(
+            f"* score={score} id={r['id']} matched={keys} GL={','.join(r.get('gl', []))}"
+        )
 
     best = top3[0][1]
     rating, demotion_reason, gl = apply_rule(best, facts)
