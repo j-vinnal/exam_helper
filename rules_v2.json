@@ -181,6 +181,7 @@
       "prompt": "Research: How well does the POI/business name match the real-world official name?",
       "enum": "name_match",
       "default": "exact",
+      "lexicon_key": "name_match",
       "test_aliases": ["name match", "name_match"]
     },
 
@@ -189,6 +190,7 @@
       "prompt": "Research: How well does the address match the real-world address?",
       "enum": "address_match",
       "default": "exact",
+      "lexicon_key": "address_match",
       "test_aliases": ["address match", "address_match"]
     },
 
@@ -198,11 +200,29 @@
       "default": true,
       "test_aliases": ["location exists", "location_exists"]
     },
+
+    "pin_generous_perfect": {
+      "type": "bool",
+      "prompt": "Research (Pin Layers): Is the pin Perfect on EITHER the Satellite or Vector layer?",
+      "default": false,
+      "test_aliases": [
+        "generosity rule",
+        "pin_generous_perfect",
+        "satellite or vector"
+      ]
+    },
+    "cross_street_between": {
+      "type": "bool",
+      "prompt": "Research (Next Door): Is there a public road/cross-street separating the pin from the target property?",
+      "default": false,
+      "test_aliases": ["cross street", "cross_street_between", "block boundary"]
+    },
     "poi_context": {
       "type": "enum",
       "prompt": "Pin context",
       "enum": "poi_context",
       "default": "single_building",
+      "lexicon_key": "poi_context",
       "test_aliases": ["Pin context", "poi_context"]
     },
     "pin_relation": {
@@ -210,8 +230,31 @@
       "prompt": "Pin relation to the correct feature",
       "enum": "pin_relation",
       "default": "on_feature",
+      "lexicon_key": "pin_relation",
       "test_aliases": ["pin relation", "pin_relation"]
     }
+  },
+
+  "research_checklists": {
+    "name_accuracy": [
+      "Verify official POI name (website/store locator).",
+      "Confirm category/classification matches the entity.",
+      "Use Street View for signage when needed."
+    ],
+    "address_accuracy": [
+      "Check USPS ZIP Code Lookup (deliverable? directions N/E/S/W).",
+      "Confirm locality/ZIP alignment in maps.",
+      "Use Street View when address components are unclear."
+    ],
+    "pin_accuracy": [
+      "Check both Satellite and Vector layers; apply the more generous layer (GL 9.3.3).",
+      "Use Street View / imagery to confirm rooftop/entrance/unit area.",
+      "If address/place does not exist (e.g., USPS says N), rate Can't Verify."
+    ],
+    "relevance": [
+      "For chains, use official store locator to verify the REAL closest branch.",
+      "Confirm LI (user vs viewport vs explicit location modifier) before distance decisions."
+    ]
   },
   "rules": [
     {
@@ -539,7 +582,7 @@
       "when": { "rt": ["address_only", "street", "locality"] },
       "then": {
         "rating": "NA",
-        "comment": "Name Accuracy is N/A for address-type results."
+        "comment": "User intent: evaluate Name Accuracy only when a POI/business name exists. Reasoning: this is an address-type result, so there is no POI name to verify. GL: 6.1."
       },
       "refs": [{ "source": "guidelines", "section": "6.1" }]
     },
@@ -549,7 +592,7 @@
       "when": { "rt": ["poi"], "category_matches_entity": [false] },
       "then": {
         "rating": "Incorrect",
-        "comment": "Incorrect category forces Name/Category Accuracy = Incorrect."
+        "comment": "User intent: POI name and classification should be accurate and not misleading. Reasoning: the category/classification is wrong, so the final Name and Category Accuracy rating is always Incorrect even if the name text looks correct. GL: 6.3.2."
       },
       "refs": [{ "source": "guidelines", "section": "6.3.2" }]
     },
@@ -567,7 +610,7 @@
             "no": { "rating": "Incorrect" }
           }
         },
-        "comment": "Name accuracy based on how the displayed name matches the real-world official name."
+        "comment": "User intent: POI name should match the official real-world name. Reasoning: after verifying the category is correct, rate name match vs official sources (website/store locator/signage). GL: 6.2."
       },
       "refs": [{ "source": "guidelines", "section": "6.2" }]
     },
@@ -586,18 +629,41 @@
             "no": { "rating": "Incorrect" }
           }
         },
-        "comment": "Address accuracy based on real-world address verification (including formatting-only differences)."
+        "comment": "User intent: the address should match the real-world address for this result type. Reasoning: verify components via authoritative sources (USPS/maps); formatting-only differences keep the rating as Correct with Formatting. GL: 7."
       },
       "refs": [{ "source": "guidelines", "section": "7" }]
     },
 
+    {
+      "id": "PIN.ADDRESS_NOT_EXISTS.CANT_VERIFY",
+      "task": "pin_accuracy",
+      "when": { "address_exists": [false] },
+      "then": {
+        "rating": "Can't Verify",
+        "comment": "User intent: pin should represent a real, verifiable location. Reasoning: the place/address does not exist in the real world (e.g., USPS says N), so the pin cannot be verified. GL: 9 (and address existence guidance 10.3)."
+      },
+      "refs": [
+        { "source": "guidelines", "section": "9" },
+        { "source": "guidelines", "section": "10.3" }
+      ]
+    },
+    {
+      "id": "PIN.GENEROSITY.PERFECT",
+      "task": "pin_accuracy",
+      "when": { "address_exists": [true], "pin_generous_perfect": [true] },
+      "then": {
+        "rating": "Perfect",
+        "comment": "User intent: pin accuracy is rated using the most generous map layer when Satellite and Vector disagree. Reasoning: if the pin is Perfect on either layer, assign Perfect. GL: 9.3.3."
+      },
+      "refs": [{ "source": "guidelines", "section": "9.3.3" }]
+    },
     {
       "id": "PIN.DOES_NOT_EXIST.CANT_VERIFY",
       "task": "pin_accuracy",
       "when": { "location_exists": [false] },
       "then": {
         "rating": "Can't Verify",
-        "comment": "Cannot verify pin when the place/address does not exist."
+        "comment": "User intent: pin should represent a real, verifiable location. Reasoning: the place/address does not exist or cannot be confirmed, so the pin cannot be verified. GL: 9."
       },
       "refs": [{ "source": "guidelines", "section": "9" }]
     },
@@ -607,9 +673,45 @@
       "when": { "poi_context": ["transit"], "pin_relation": ["next_door"] },
       "then": {
         "rating": "Wrong",
-        "comment": "Transit POIs do not allow Next Door; Next Door becomes Wrong."
+        "comment": "User intent: transit pins must be on the station/platform/waiting area (or nearby) and do not use Next Door. Reasoning: Next Door is not allowed for transit POIs; if chosen, the rating is Wrong. GL: 9 (transit examples)."
       },
       "refs": [{ "source": "guidelines", "section": "9" }]
+    },
+    {
+      "id": "PIN.AREA_POLYGON.INSIDE.PERFECT",
+      "task": "pin_accuracy",
+      "when": {
+        "poi_context": ["area_polygon"],
+        "pin_relation": ["on_feature"]
+      },
+      "then": {
+        "rating": "Perfect",
+        "comment": "User intent: for administrative areas/parks, the pin must be inside the boundary. Reasoning: pin tip is inside the polygon, so the rating is Perfect. GL: 9."
+      },
+      "refs": [{ "source": "guidelines", "section": "9" }]
+    },
+    {
+      "id": "PIN.AREA_POLYGON.OUTSIDE.WRONG",
+      "task": "pin_accuracy",
+      "when": {
+        "poi_context": ["area_polygon"],
+        "pin_relation": ["on_property", "next_door", "wrong"]
+      },
+      "then": {
+        "rating": "Wrong",
+        "comment": "User intent: for administrative areas/parks, the pin must be inside the boundary. Reasoning: pin tip is outside the polygon; Approximate/Next Door do not apply, so the rating is Wrong. GL: 9."
+      },
+      "refs": [{ "source": "guidelines", "section": "9" }]
+    },
+    {
+      "id": "PIN.NEXT_DOOR.CROSS_STREET.WRONG",
+      "task": "pin_accuracy",
+      "when": { "pin_relation": ["next_door"], "cross_street_between": [true] },
+      "then": {
+        "rating": "Wrong",
+        "comment": "User intent: Next Door means immediately adjacent on the same block. Reasoning: a cross-street/public road separates the pin from the target property, which breaks the same-block requirement, so the rating is Wrong. GL: 9.1.3."
+      },
+      "refs": [{ "source": "guidelines", "section": "9.1.3" }]
     },
     {
       "id": "PIN.DEFAULT.RELATION_DECISION",
@@ -626,7 +728,7 @@
             "wrong": { "rating": "Wrong" }
           }
         },
-        "comment": "Pin accuracy based on where the pin tip lands relative to the correct feature/property."
+        "comment": "User intent: pin tip should reflect the verified real-world feature location. Reasoning: map pin tip to Perfect/Approximate/Next Door/Wrong based on feature vs parcel boundaries (parking lot/yard/aux buildings are Approximate). GL: 9."
       },
       "refs": [{ "source": "guidelines", "section": "9" }]
     }

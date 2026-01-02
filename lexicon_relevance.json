@@ -105,6 +105,64 @@
       "description": "Not applicable (no viewport or stale)."
     }
   },
+
+  "poi_context": {
+    "single_building": {
+      "title": "Single Building / Residential",
+      "description": "Standalone house or business. Perfect = rooftop/front feature; Approximate = same parcel (yard/driveway/parking/auxiliary building like garage/shed)."
+    },
+    "shared_roof_stripmall": {
+      "title": "Shared Rooftop / Strip Mall",
+      "description": "Multiple businesses under one connected roof. With good evidence (Street View / mall directory), Perfect = exact unit portion; Approximate = other roof portions or shared parking. Next Door is not used for shared parcels."
+    },
+    "transit": {
+      "title": "Transit POI",
+      "description": "Stations/stops. Perfect = platform/building/waiting area; Approximate = within ~50m / station parcel/parking. Next Door is not allowed for transit."
+    },
+    "area_polygon": {
+      "title": "Administrative Area / Park",
+      "description": "City/neighborhood/park polygon. Perfect = pin tip inside boundary. Wrong = outside boundary. Approximate/Next Door are not used."
+    }
+  },
+  "pin_relation": {
+    "on_feature": {
+      "title": "On Feature (Perfect)",
+      "description": "Pin tip lands directly on the correct feature: rooftop/unit area, transit waiting area/platform, or inside the area polygon."
+    },
+    "on_property": {
+      "title": "On Property (Approximate)",
+      "description": "Pin tip is within correct property/parcel boundaries but not on the perfect feature area (e.g., parking lot, driveway, yard, auxiliary building like garage/shed)."
+    },
+    "next_door": {
+      "title": "Next Door",
+      "description": "Immediately adjacent property on the same block/side; must NOT be separated by a cross-street/public road. Not used for transit, polygons, or shared-roof/strip-mall parcels."
+    },
+    "wrong": {
+      "title": "Wrong",
+      "description": "Outside the correct property/feature and outside valid Next Door. Includes being across a cross-street (different block)."
+    }
+  },
+
+  "name_match": {
+    "exact": {
+      "description": "Name matches official real-world name (including branding)."
+    },
+    "partial": {
+      "description": "Close match but missing/extra elements (e.g., branch descriptor, suite/wing) or minor differences."
+    },
+    "no": { "description": "Does not match the real-world name." }
+  },
+  "address_match": {
+    "exact": {
+      "description": "Address components match the real-world address."
+    },
+    "formatting_only": {
+      "description": "All components present; differences are formatting only (punctuation/order/spacing)."
+    },
+    "no": {
+      "description": "Address is incorrect or missing required components."
+    }
+  },
   "distance_tier": {
     "closest": {
       "description": "The result is the nearest real-world location for a chain query in the location intent area."

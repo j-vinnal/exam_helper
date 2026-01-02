@@ -335,11 +335,23 @@ def evaluate_task(task: str, facts: Facts) -> Tuple[str, Rule, str, str, str]:
         ask_fact("rt", facts)
 
     elif task == "pin_accuracy":
-        ask_fact("location_exists", facts)
-        # only ask more if it exists
-        if facts.get("location_exists") is True:
+        # Guidelines-first: if the place/address doesn't exist, pin is Can't Verify.
+        # Also support the Satellite vs Vector generosity rule.
+        ask_fact("address_exists", facts)
+        facts["location_exists"] = facts.get("address_exists")
+        if facts.get("address_exists") is True:
+            ask_fact("pin_generous_perfect", facts)
+
+        # Only collect geometry/context details if we still need them.
+        if (
+            facts.get("address_exists") is True
+            and facts.get("pin_generous_perfect") is not True
+        ):
             ask_fact("poi_context", facts)
             ask_fact("pin_relation", facts)
+
+            if facts.get("pin_relation") == "next_door":
+                ask_fact("cross_street_between", facts)
 
     # Iteratively collect missing required fields for best-matching candidates
     for _ in range(20):
@@ -438,6 +450,7 @@ def main() -> None:
             print(f"Rule: {rule.get('id','')}")
             print(f"Why: {rule.get('then', {}).get('comment', '')}")
             print(f"GL: {refs}")
+            _print_research_checklist(t)
             continue
 
         rating, rule, demotion_reason, refs, comment = evaluate_task(t, facts)
@@ -448,6 +461,18 @@ def main() -> None:
             print(f"Guidelines: {refs}")
         if comment:
             print(f"Comment: {comment}")
+        _print_research_checklist(t)
+
+
+def _print_research_checklist(task: str) -> None:
+    checklists = SCHEMA.get("research_checklists", {})
+    items = checklists.get(task)
+    if not items:
+        return
+
+    print("\nMandatory research prompts:")
+    for item in items:
+        print(f"- {item}")
 
 
 def refs_for_rule(rule: Rule) -> str:
